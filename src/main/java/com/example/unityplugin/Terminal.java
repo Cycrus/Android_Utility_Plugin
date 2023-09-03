@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Objects;
 
 public class Terminal {
     private Application application;
@@ -22,33 +23,8 @@ public class Terminal {
     private InputStream stderr;
     private BufferedReader outStream;
     private BufferedReader errStream;
-
-    public void runTestCommand() throws IOException {
-        System.out.println("[Terminal] Running test command.");
-        Process process = Runtime.getRuntime().exec("sh");
-        OutputStream stdin = process.getOutputStream();
-        InputStream stdout = process.getInputStream();
-        InputStream stderr = process.getErrorStream();
-
-        String command = "echo Hello World, I am in VR and am invoked from stdin.";
-        stdin.write(command.getBytes());
-        stdin.flush();
-        stdin.close();
-
-        String line;
-        BufferedReader brCleanUp = new BufferedReader(new InputStreamReader(stdout));
-        while((line = brCleanUp.readLine()) != null) {
-            System.out.println("[Terminal] Stdout: " + line);
-        }
-        brCleanUp.close();
-
-        brCleanUp = new BufferedReader(new InputStreamReader(stderr));
-        while((line = brCleanUp.readLine()) != null) {
-            System.out.println("[Terminal] Stderr: " + line);
-        }
-        brCleanUp.close();
-        process.destroy();
-    }
+    private int shPid;
+    private String lastCommand;
 
     public boolean startProcess(String[] processName) {
         try {
@@ -60,7 +36,7 @@ public class Terminal {
             else
                 return false;
 
-            processBuilder = new ProcessBuilder(processName);
+            shPid = getPid();
             stdin = process.getOutputStream();
             stdout = process.getInputStream();
             stderr = process.getErrorStream();
@@ -81,11 +57,38 @@ public class Terminal {
             data += "\n";
             stdin.write(data.getBytes());
             stdin.flush();
+            String[] dataList = data.split(" ", 2);
+            lastCommand = dataList[0];
         }
         catch(IOException e)
         {
             System.out.println("[Terminal] In ERROR: " + e);
         }
+    }
+
+    public int getChildPid(String procName) {
+        Terminal tmpTerminal = new Terminal();
+        String[] command = new String[] {"sh", "-c", "ps"};
+        tmpTerminal.startProcess(command);
+        int childPid = -1;
+
+        for(int i = 0; i < 1000000; i++) {
+            String output = tmpTerminal.stdOut();
+            if(output == null)
+                continue;
+
+            PsOutput currProc = new PsOutput(output);
+            if(!currProc.valid) continue;
+
+            if((currProc.PPID == shPid) && procName.contains(currProc.NAME))
+            {
+                childPid = currProc.PID;
+                break;
+            }
+        }
+
+        tmpTerminal.closeShell();
+        return childPid;
     }
 
     public String stdOut() {
@@ -128,20 +131,28 @@ public class Terminal {
         }
     }
 
-    public void printChildProcesses() {
-        System.out.println("[Terminal] Children processes:");
+    public void interruptLastProcess() throws IOException {
+        int interPid = getChildPid(lastCommand);
+        if(interPid == -1)
+            return;
+        System.out.println("[Terminal] SIGINT to: " + interPid);
+        Runtime.getRuntime().exec("kill -SIGINT " + interPid);
     }
 
-    public void interruptCurrProcess() throws IOException {
-        int pid = getPid();
-        System.out.println("[Terminal] SIGINT to: " + pid);
-        Runtime.getRuntime().exec("kill -SIGINT " + pid);
+    public void killLastProcess() throws IOException {
+        int killPid = getChildPid(lastCommand);
+        if(killPid == -1)
+            return;
+        System.out.println("[Terminal] SIGKILL to: " + killPid);
+        Runtime.getRuntime().exec("kill -SIGKILL " + killPid);
     }
 
-    public void killCurrProcess() throws IOException {
-        int pid = getPid();
-        System.out.println("[Terminal] SIGKILL to: " + pid);
-        Runtime.getRuntime().exec("kill -SIGKILL " + pid);
+    public void termLastProcess() throws IOException {
+        int termPid = getChildPid(lastCommand);
+        if(termPid == -1)
+            return;
+        System.out.println("[Terminal] SIGTERM to: " + termPid);
+        Runtime.getRuntime().exec("kill -SIGTERM " + termPid);
     }
 
     public int getPid() {
@@ -157,59 +168,16 @@ public class Terminal {
         return pid;
     }
 
-    public void closeShell() throws IOException {
+    public void closeShell() {
         System.out.println("[Terminal] Closing down process.");
-        outStream.close();
-        stdin.close();
-        stdout.close();
-        stderr.close();
+        try {
+            outStream.close();
+            stdin.close();
+            stdout.close();
+            stderr.close();
+        } catch(IOException e) {
+
+        }
         process.destroy();
     }
 }
-
-/*
-import java.io.*;
-
-public class CustomBash {
-    private Process process;
-    private OutputStream stdin;
-    private InputStream stdout;
-
-    public boolean startProcess(String[] processName) {
-        try {
-            // Start the process
-            ProcessBuilder builder = new ProcessBuilder(processName);
-            process = builder.start();
-            stdin = process.getOutputStream();
-            stdout = process.getInputStream();
-            return true;
-        } catch (IOException e) {
-            System.out.println("[Terminal] ERROR: " + e);
-            return false;
-        }
-    }
-
-    public void stdIn(String data) {
-        try {
-            System.out.println("[Terminal] Sending <" + data + "> to stdin.");
-            // Add a newline to the input to simulate pressing Enter
-            data += "\n";
-            stdin.write(data.getBytes());
-            stdin.flush();
-        } catch (IOException e) {
-            System.out.println("[Terminal] In ERROR: " + e);
-        }
-    }
-
-    public void interruptCurrProcess() {
-        try {
-            // Send a SIGINT signal to the child process
-            process.destroy();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Other methods as before...
-}
- */
