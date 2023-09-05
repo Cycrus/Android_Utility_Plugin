@@ -1,4 +1,4 @@
-package com.example.unityplugin;
+package com.example.unityplugin.TerminalResources;
 
 public class PsOutput {
     public String USER;
