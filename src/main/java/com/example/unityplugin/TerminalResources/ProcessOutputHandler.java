@@ -5,28 +5,47 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
 
+
 public class ProcessOutputHandler extends Thread {
-    private final Process process;
+    private final ProcessContainer process;
     private final List<String> outputBuffer;
     private final BufferedReader outputReader;
-    private String output;
+    private final ReadMethod readMethod;
+    private final long startTime;
 
-    public ProcessOutputHandler(Process process, List<String> outputBuffer) {
+    public ProcessOutputHandler(ProcessContainer process, List<String> outputBuffer, boolean errorOutput, ReadMethod readMethod) {
         this.process = process;
         this.outputBuffer = outputBuffer;
 
-        outputReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        if(errorOutput)
+            outputReader = new BufferedReader(new InputStreamReader(process.process.getErrorStream()));
+        else
+            outputReader = new BufferedReader(new InputStreamReader(process.process.getInputStream()));
+
+        this.readMethod = readMethod;
+
+        startTime = System.currentTimeMillis();
     }
 
     @Override
     public void run() {
-        // TODO: This is currently running forever. You must close this when the process dies.
-        readLineByCharacter();
+        switch(readMethod) {
+            case BY_CHARACTER:
+                readLineByCharacter();
+                break;
+            case BY_LINE:
+                readLineByLine();
+                break;
+            default:
+                System.out.println("[ERROR] Invalid read method for the process " + process + ".");
+                break;
+        }
     }
 
     public void readLineByLine() {
         while (true) {
             String line = null;
+
             try {
                 if (!outputReader.ready())
                     continue;
@@ -35,9 +54,10 @@ public class ProcessOutputHandler extends Thread {
                 System.out.println("[Terminal] Output Thread error: " + e);
                 return;
             }
+
             if (line != null) {
                 synchronized (outputBuffer) {
-                    System.out.println("[Terminal] Output: " + line);
+                    System.out.println("[Terminal] Output " + process + ": " + line);
                     outputBuffer.add(line);
                 }
             }
@@ -45,8 +65,18 @@ public class ProcessOutputHandler extends Thread {
     }
 
     public void readLineByCharacter() {
-        System.out.println("[Terminal] Started ProcessOutputHandler thread.");
+        System.out.println("[Terminal] Started ProcessOutputHandler " + process + " thread.");
+        String output;
+
         while (true) {
+            long currTime = System.currentTimeMillis();
+            if((currTime - startTime) >= 1000) {
+                if(!process.process.isAlive()) {
+                    System.out.println("[Terminal] Closing down ProcessOutputHandler " + process);
+                    return;
+                }
+            }
+
             char character;
             output = "";
             try {
@@ -57,12 +87,11 @@ public class ProcessOutputHandler extends Thread {
                     output += character;
                 } while(character != '\n' && character != '\r');
             } catch (IOException e) {
-                System.out.println("[Terminal] Output Thread error: " + e);
+                System.out.println("[Terminal] ProcessOutputHandler " + process + " error: " + e);
                 return;
             }
             if (!output.equals("")) {
                 synchronized (outputBuffer) {
-                    System.out.println("[Terminal] Output: " + output);
                     outputBuffer.add(output);
                 }
             }

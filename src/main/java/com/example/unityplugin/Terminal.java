@@ -1,10 +1,15 @@
 package com.example.unityplugin;
 
+import android.app.Activity;
+
+import com.example.unityplugin.TerminalResources.BashCommands;
 import com.example.unityplugin.TerminalResources.ProcessContainer;
 import com.example.unityplugin.TerminalResources.ProcessOutputHandler;
 import com.example.unityplugin.TerminalResources.ProcessWatcher;
+import com.example.unityplugin.TerminalResources.ReadMethod;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -20,13 +25,17 @@ public class Terminal {
     private final List<String> commandHistory;
     private final List<String> outputBuffer;
     private final List<String> errorBuffer;
+    private final Activity androidActivity;
 
-    public Terminal() {
+    public Terminal(Activity activity) {
         pb = new ProcessBuilder();
         processList = new ArrayList<>();
         commandHistory = new ArrayList<>();
         outputBuffer = new ArrayList<>();
         errorBuffer = new ArrayList<>();
+        androidActivity = activity;
+        pb.directory(new File(androidActivity.getApplicationInfo().dataDir));
+        System.out.println("[Terminal] Working directory set to <" + androidActivity.getApplicationInfo().dataDir + ">");
     }
 
     public boolean startProcess(String[] startCommand) {
@@ -38,8 +47,8 @@ public class Terminal {
             pb.command(startCommand);
             Process newProcess = pb.start();
             ProcessContainer newContainer = new ProcessContainer(newProcess, startCommand[0], getPid(newProcess));
-            ProcessOutputHandler outputHandler = new ProcessOutputHandler(newProcess, outputBuffer);
-            ProcessOutputHandler errorHandler = new ProcessOutputHandler(newProcess, errorBuffer);
+            ProcessOutputHandler outputHandler = new ProcessOutputHandler(newContainer, outputBuffer, false, ReadMethod.BY_CHARACTER);
+            ProcessOutputHandler errorHandler = new ProcessOutputHandler(newContainer, errorBuffer, true, ReadMethod.BY_CHARACTER);
             outputHandler.start();
             errorHandler.start();
             synchronized (processList) {
@@ -113,6 +122,12 @@ public class Terminal {
         }
     }
 
+    private boolean isBaseProcess(ProcessContainer process) {
+        synchronized(processList) {
+            return process.pid == processList.get(0).pid;
+        }
+    }
+
     private void storeCommand(String command) {
         commandHistory.add(command);
         if(commandHistory.size() > 50) {
@@ -125,7 +140,7 @@ public class Terminal {
 
         if(isProcessShell(process) && !isBashCommand(baseCommand)) {
             System.out.println("[Terminal] in 1");
-            data = "sh -c " + data;
+            //data = "sh -c " + data;
             String[] splitCommand = data.split(" ");
             startProcess(splitCommand);
             System.out.println("[Terminal] in 2");
@@ -135,7 +150,7 @@ public class Terminal {
         }
 
         try {
-            System.out.println("[Terminal] Sending <" + data + "> to stdin.");
+            System.out.println("[Terminal] Sending <" + data + "> to stdin of " + process);
             data += "\n";
             OutputStream stdin = process.process.getOutputStream();
             System.out.println("[Terminal] in 4");
@@ -174,13 +189,15 @@ public class Terminal {
     }
 
     private void sendSignal(ProcessContainer process, String signal) {
-        if(isProcessShell(process))
+        if(isBaseProcess(process)) {
+            System.out.println("[Terminal] Base process " + process + " not killable with signal.");
             return;
+        }
 
         int sigPid = process.pid;
         if(sigPid == -1)
             return;
-        System.out.println("[Terminal] " + signal + " to: " + sigPid);
+        System.out.println("[Terminal] " + signal + " to " + process);
         try {
             Runtime.getRuntime().exec("kill -" + signal + " " + sigPid);
         } catch(IOException e)
@@ -207,6 +224,6 @@ public class Terminal {
     }
 
     private boolean isBashCommand(String command) {
-        return Objects.equals(command, "echo");
+        return BashCommands.getCommands().contains(command);
     }
 }

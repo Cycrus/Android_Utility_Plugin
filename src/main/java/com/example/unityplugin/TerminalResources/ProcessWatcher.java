@@ -20,7 +20,7 @@ public class ProcessWatcher extends Thread {
         }
 
         synchronized(processList) {
-            System.out.println("[Terminal] Removing process from list.");
+            System.out.println("[Terminal] Removing process " + process + " from list.");
             processList.remove(process);
         }
     }

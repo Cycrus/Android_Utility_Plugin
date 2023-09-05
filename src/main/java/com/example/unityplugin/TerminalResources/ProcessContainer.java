@@ -10,4 +10,9 @@ public class ProcessContainer {
         this.name = name;
         this.pid = pid;
     }
+
+    @Override
+    public String toString() {
+        return "<" + name + " | " + pid + ">";
+    }
 }
