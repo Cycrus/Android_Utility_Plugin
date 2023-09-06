@@ -102,6 +102,14 @@ public class Terminal {
         sendSignal(getActiveProcess(), "SIGTERM");
     }
 
+    public void sendToOutput(String content, boolean error) {
+        String[] splitString = content.split("\n");
+        if(error)
+            errorBuffer.addAll(Arrays.asList(splitString));
+        else
+            outputBuffer.addAll(Arrays.asList(splitString));
+    }
+
     private String getCommandHistory() {
         StringBuilder historyBuilder = new StringBuilder();
         for(String command: commandHistory) {
@@ -197,13 +205,8 @@ public class Terminal {
         int sigPid = process.pid;
         if(sigPid == -1)
             return;
-        System.out.println("[Terminal] " + signal + " to " + process);
-        try {
-            Runtime.getRuntime().exec("kill -" + signal + " " + sigPid);
-        } catch(IOException e)
-        {
-            System.out.println("[Terminal] ERROR in sendSignal: " + e);
-        }
+
+        startProcess(new String[] {"kill", "-" + signal, Integer.toString(sigPid)});
     }
 
     private boolean isProcessShell(ProcessContainer process) {

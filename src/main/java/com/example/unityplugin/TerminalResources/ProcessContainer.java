@@ -1,5 +1,7 @@
 package com.example.unityplugin.TerminalResources;
 
+import androidx.annotation.NonNull;
+
 public class ProcessContainer {
     public Process process;
     public String name;
@@ -11,6 +13,7 @@ public class ProcessContainer {
         this.pid = pid;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "<" + name + " | " + pid + ">";
