@@ -84,7 +84,8 @@ public class ProcessOutputHandler extends Thread {
                     continue;
                 do {
                     character = (char)outputReader.read();
-                    output += character;
+                    if(character != '\n')
+                        output += character;
                 } while(character != '\n');
             } catch (IOException e) {
                 System.out.println("[Terminal] ProcessOutputHandler " + process + " error: " + e);
