@@ -2,7 +2,6 @@ package com.example.unityplugin;
 
 import android.app.Activity;
 
-import com.example.unityplugin.TerminalResources.BashCommands;
 import com.example.unityplugin.TerminalResources.ProcessContainer;
 import com.example.unityplugin.TerminalResources.ProcessOutputHandler;
 import com.example.unityplugin.TerminalResources.ProcessWatcher;
@@ -27,6 +26,8 @@ public class Terminal {
     private final List<String> errorBuffer;
     private final Activity androidActivity;
 
+    private List<String> helpString;
+
     public Terminal(Activity activity) {
         pb = new ProcessBuilder();
         processList = new ArrayList<>();
@@ -36,6 +37,10 @@ public class Terminal {
         androidActivity = activity;
         pb.directory(new File(androidActivity.getApplicationInfo().dataDir));
         System.out.println("[Terminal] Working directory set to <" + androidActivity.getApplicationInfo().dataDir + ">");
+        helpString = Arrays.asList(
+                "Here are some of the possible commands.\n",
+                "help, exit, echo, clear, ping, curl, pwd, cd, ls.\n"
+        );
     }
 
     public boolean startProcess(String[] startCommand) {
@@ -104,18 +109,31 @@ public class Terminal {
 
     public void sendToOutput(String content, boolean error) {
         String[] splitString = content.split("\n");
+        for(int i = 0; i < splitString.length; i++)
+        {
+            splitString[i] += '\n';
+        }
+
         if(error)
             errorBuffer.addAll(Arrays.asList(splitString));
         else
             outputBuffer.addAll(Arrays.asList(splitString));
     }
 
-    private String getCommandHistory() {
-        StringBuilder historyBuilder = new StringBuilder();
-        for(String command: commandHistory) {
-            historyBuilder.append(command).append("\n");
-        }
-        return historyBuilder.toString();
+    public boolean isCurrentProcBase() {
+        return isBaseProcess(getActiveProcess());
+    }
+
+    public boolean isCurrentProcShell() {
+        return isProcessShell(getActiveProcess());
+    }
+
+    private void writeCommandHistory() {
+        outputBuffer.addAll(commandHistory);
+    }
+
+    private void writeHelp() {
+        outputBuffer.addAll(helpString);
     }
 
     private ProcessContainer getActiveProcess() {
@@ -136,7 +154,9 @@ public class Terminal {
         }
     }
 
-    private void storeCommand(String command) {
+    public void storeCommand(String command) {
+        if(command.charAt(command.length() - 1) != '\n')
+            command += "\n";
         commandHistory.add(command);
         if(commandHistory.size() > 50) {
             commandHistory.remove(0);
@@ -144,32 +164,49 @@ public class Terminal {
     }
 
     private void stdIn(ProcessContainer process, String data) {
-        String baseCommand = data.split(" ")[0];
-
-        if(isProcessShell(process) && !isBashCommand(baseCommand)) {
-            System.out.println("[Terminal] in 1");
-            //data = "sh -c " + data;
-            String[] splitCommand = data.split(" ");
-            startProcess(splitCommand);
-            System.out.println("[Terminal] in 2");
+        // First look if the command is custom.
+        if(processCustomCommand(data)) {
             storeCommand(data);
-            System.out.println("[Terminal] in 3");
             return;
         }
 
+        String baseCommand = data.split(" ")[0];
+
+        // Spawn Process if possible.
+        if(isProcessShell(process) && !Objects.equals(baseCommand, "cd")) {
+            String[] splitCommand = data.split(" ");
+            if(startProcess(splitCommand)) {
+                storeCommand(data);
+                return;
+            }
+        }
+
+        // If not possible write in standard input.
         try {
             System.out.println("[Terminal] Sending <" + data + "> to stdin of " + process);
-            data += "\n";
+            if(data.charAt(data.length() - 1) != '\n')
+                data += "\n";
             OutputStream stdin = process.process.getOutputStream();
-            System.out.println("[Terminal] in 4");
             stdin.write(data.getBytes());
-            System.out.println("[Terminal] in 5");
             stdin.flush();
-            System.out.println("[Terminal] in 6");
-
+            storeCommand(data);
         } catch (IOException e) {
             System.out.println("[Terminal] In ERROR: " + e);
         }
+    }
+
+    private boolean processCustomCommand(String command) {
+        switch(command) {
+            case "history":
+                writeCommandHistory();
+                break;
+            case "help":
+                writeHelp();
+                break;
+            default:
+                return false;
+        }
+        return true;
     }
 
     private String stdOut(Process process, boolean stdErr) {
@@ -224,9 +261,5 @@ public class Terminal {
             pid = -1;
         }
         return pid;
-    }
-
-    private boolean isBashCommand(String command) {
-        return BashCommands.getCommands().contains(command);
     }
 }
