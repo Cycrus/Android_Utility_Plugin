@@ -96,7 +96,10 @@ public class Terminal {
     }
 
     public void interruptLastProcess() throws IOException {
-        sendSignal(getActiveProcess(), "SIGINT");
+        //sendSignal(getActiveProcess(), "SIGINT");
+        char sigintChar = (char)3;
+        String sigintString = Character.toString(sigintChar);
+        writeInput(sigintString);
     }
 
     public void killLastProcess() throws IOException {
@@ -166,6 +169,7 @@ public class Terminal {
     private void stdIn(ProcessContainer process, String data) {
         // First look if the command is custom.
         if(processCustomCommand(data)) {
+            System.out.println("[Terminal] Processing custom command: " + data);
             storeCommand(data);
             return;
         }
@@ -173,23 +177,23 @@ public class Terminal {
         String baseCommand = data.split(" ")[0];
 
         // Spawn Process if possible.
-        if(isProcessShell(process) && !Objects.equals(baseCommand, "cd")) {
+        /*if(isProcessShell(process) && !Objects.equals(baseCommand, "cd")) {
             String[] splitCommand = data.split(" ");
             if(startProcess(splitCommand)) {
+                System.out.println("[Terminal] Processing new process command: " + data);
                 storeCommand(data);
                 return;
             }
-        }
+        }*/
 
         // If not possible write in standard input.
         try {
             System.out.println("[Terminal] Sending <" + data + "> to stdin of " + process);
-            if(data.charAt(data.length() - 1) != '\n')
-                data += "\n";
+            storeCommand(data);
+            data += "\n";
             OutputStream stdin = process.process.getOutputStream();
             stdin.write(data.getBytes());
             stdin.flush();
-            storeCommand(data);
         } catch (IOException e) {
             System.out.println("[Terminal] In ERROR: " + e);
         }

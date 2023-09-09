@@ -1,5 +1,6 @@
 package com.example.unityplugin.TerminalResources;
 
+import java.io.IOException;
 import java.util.List;
 
 public class ProcessWatcher extends Thread {
@@ -17,6 +18,13 @@ public class ProcessWatcher extends Thread {
         } catch (InterruptedException e) {
             if (process.process.isAlive())
                 process.process.destroy();
+        }
+
+        try {
+            process.outputReader.close();
+            process.errorReader.close();
+        } catch (IOException e) {
+            System.out.println("[Terminal] ERROR " + process + " could not close output buffers.");
         }
 
         synchronized(processList) {

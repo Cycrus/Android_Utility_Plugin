@@ -146,30 +146,33 @@ public class NetworkControl {
     }
 
     public boolean isAirplaneModeEnabled() throws Settings.SettingNotFoundException {
-        return Settings.System.getInt(unityActivity.getContentResolver(), Settings.Global.AIRPLANE_MODE_ON) == 1;
+        //return Settings.System.getInt(unityActivity.getContentResolver(), Settings.Global.AIRPLANE_MODE_ON) == 1;
+        return false;
     }
 
     public boolean enableAirplaneMode()
     {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+        /*if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
             Settings.System.putInt(unityActivity.getContentResolver(), Settings.Global.AIRPLANE_MODE_ON, 1);
             return true;
         }
         else
         {
             return false;
-        }
+        }*/
+        return false;
     }
 
     public boolean disableAirplaneMode()
     {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+        /*if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
             Settings.System.putInt(unityActivity.getContentResolver(), Settings.Global.AIRPLANE_MODE_ON, 0);
             return true;
         }
             else
         {
             return false;
-        }
+        }*/
+        return false;
     }
 }

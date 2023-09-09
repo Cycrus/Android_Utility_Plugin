@@ -9,18 +9,18 @@ import java.util.List;
 public class ProcessOutputHandler extends Thread {
     private final ProcessContainer process;
     private final List<String> outputBuffer;
-    private final BufferedReader outputReader;
     private final ReadMethod readMethod;
     private final long startTime;
+    private final BufferedReader outputReader;
 
     public ProcessOutputHandler(ProcessContainer process, List<String> outputBuffer, boolean errorOutput, ReadMethod readMethod) {
         this.process = process;
         this.outputBuffer = outputBuffer;
 
         if(errorOutput)
-            outputReader = new BufferedReader(new InputStreamReader(process.process.getErrorStream()));
+            outputReader = process.errorReader;
         else
-            outputReader = new BufferedReader(new InputStreamReader(process.process.getInputStream()));
+            outputReader = process.outputReader;
 
         this.readMethod = readMethod;
 
@@ -80,14 +80,13 @@ public class ProcessOutputHandler extends Thread {
             char character;
             output = "";
             try {
-                if (!outputReader.ready())
-                    continue;
                 do {
                     character = (char)outputReader.read();
                     output += character;
                 } while(character != '\n' && character != '\0');
             } catch (IOException e) {
-                System.out.println("[Terminal] ProcessOutputHandler " + process + " error: " + e);
+                System.out.println("[Terminal] ProcessOutputHandler " + process + " " + e);
+                System.out.println("[Terminal] Closing down ProcessOutputHandler of" + process);
                 return;
             }
             if (!output.equals("")) {
