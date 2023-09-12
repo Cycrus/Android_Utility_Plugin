@@ -12,6 +12,9 @@ public class ProcessContainer {
     public final BufferedReader outputReader;
     public final BufferedReader errorReader;
 
+    public ProcessOutputHandler outputHandler;
+    public ProcessOutputHandler errorHandler;
+
     public ProcessContainer(Process process, String name, int pid) {
         this.process = process;
         this.name = name;

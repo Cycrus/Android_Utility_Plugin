@@ -5,6 +5,7 @@ import android.app.Activity;
 import com.example.unityplugin.TerminalResources.ProcessContainer;
 import com.example.unityplugin.TerminalResources.ProcessOutputHandler;
 import com.example.unityplugin.TerminalResources.ProcessWatcher;
+import com.example.unityplugin.TerminalResources.PsOutput;
 import com.example.unityplugin.TerminalResources.ReadMethod;
 
 import java.io.BufferedReader;
@@ -43,29 +44,46 @@ public class Terminal {
         );
     }
 
-    public boolean startProcess(String[] startCommand) {
+    public ProcessContainer startProcess(String[] startCommand, boolean attachToShell) {
         try {
             System.out.println("[Terminal] Starting process: " + Arrays.toString(startCommand));
             if (startCommand.length < 1)
-                return false;
+                return null;
 
             pb.command(startCommand);
             Process newProcess = pb.start();
             ProcessContainer newContainer = new ProcessContainer(newProcess, startCommand[0], getPid(newProcess));
-            ProcessOutputHandler outputHandler = new ProcessOutputHandler(newContainer, outputBuffer, false, ReadMethod.BY_CHARACTER);
-            ProcessOutputHandler errorHandler = new ProcessOutputHandler(newContainer, errorBuffer, true, ReadMethod.BY_CHARACTER);
+
+            ProcessOutputHandler outputHandler;
+            ProcessOutputHandler errorHandler;
+            if(attachToShell) {
+                outputHandler = new ProcessOutputHandler(newContainer, outputBuffer, false, ReadMethod.BY_CHARACTER);
+                errorHandler = new ProcessOutputHandler(newContainer, errorBuffer, true, ReadMethod.BY_CHARACTER);
+            }
+            else {
+                outputHandler = new ProcessOutputHandler(newContainer, null, false, ReadMethod.BY_CHARACTER);
+                errorHandler = new ProcessOutputHandler(newContainer, null, true, ReadMethod.BY_CHARACTER);
+            }
             outputHandler.start();
             errorHandler.start();
+
+            newContainer.outputHandler = outputHandler;
+            newContainer.errorHandler = errorHandler;
+
+            if(!attachToShell)
+                return newContainer;
+
             synchronized (processList) {
                 processList.add(newContainer);
             }
             ProcessWatcher processWatcher = new ProcessWatcher(newContainer, processList);
             processWatcher.start();
-            return true;
+
+            return newContainer;
         }
         catch(IOException e) {
             System.out.println("[Terminal] ERROR: " + e);
-            return false;
+            return null;
         }
     }
 
@@ -95,19 +113,90 @@ public class Terminal {
         return err;
     }
 
-    public void interruptLastProcess() throws IOException {
-        //sendSignal(getActiveProcess(), "SIGINT");
+    public void interruptShellProcess() throws IOException, InterruptedException {
+        System.out.println("[Terminal] Interrupting current process running in shell.");
+        if(numberProcessAttachedToShell() == 0) {
+            System.out.println("[Terminal] Cannot close shell with ctr-c");
+            return;
+        }
+
         char sigintChar = (char)3;
         String sigintString = Character.toString(sigintChar);
-        writeInput(sigintString);
+        boolean interruptedPing = interruptPingProcess();
+        if(!interruptedPing)
+            writeInput(sigintString);
+    }
+
+    public boolean interruptPingProcess() throws IOException, InterruptedException {
+        ProcessContainer psProcess = startProcess(new String[] {"ps"}, false);
+
+        boolean foundPingProcess = false;
+
+        String line;
+        int basePid = getPid(getBaseProcess().process);
+
+        Thread.sleep(200);
+
+        for(int i = 0; i < 10000; i++) {
+            line = psProcess.outputHandler.getOutputLine();
+            if(line == null)
+                continue;
+
+            PsOutput psOutput = new PsOutput(line);
+            if(psOutput.NAME == null)
+                continue;
+            psOutput.NAME = psOutput.NAME.replaceAll((char)10 + "", "");
+
+            if(psOutput.PPID == basePid && psOutput.NAME.equals("ping")) {
+                System.out.println("[Terminal] Now killing PID " + psOutput.PID);
+                sendSignalByPid(psOutput.PID, "SIGINT");
+                foundPingProcess = true;
+                break;
+            }
+        }
+
+        psProcess.process.destroy();
+        psProcess.outputReader.close();
+        psProcess.errorReader.close();
+
+        return foundPingProcess;
+    }
+
+    public int numberProcessAttachedToShell() throws IOException, InterruptedException {
+        ProcessContainer psProcess = startProcess(new String[] {"ps"}, false);
+
+        String line;
+        int basePid = getPid(getBaseProcess().process);
+        int procCount = 0;
+
+        Thread.sleep(100);
+
+        for(int i = 0; i < 10000; i++) {
+            line = psProcess.outputHandler.getOutputLine();
+            if(line == null)
+                continue;
+            PsOutput psOutput = new PsOutput(line);
+            if(psOutput.PPID == basePid)
+                procCount++;
+        }
+
+        psProcess.process.destroy();
+        psProcess.outputReader.close();
+        psProcess.errorReader.close();
+
+        return procCount;
+    }
+
+    public void interruptLastProcess() throws IOException {
+        sendSignalByProcess(getActiveProcess(), "SIGINT");
     }
 
     public void killLastProcess() throws IOException {
-        sendSignal(getActiveProcess(), "SIGKILL");
+        sendSignalByProcess(getActiveProcess(), "SIGKILL");
     }
 
     public void termLastProcess() throws IOException {
-        sendSignal(getActiveProcess(), "SIGTERM");
+        sendSignalByProcess(getActiveProcess(), "SIGTERM");
     }
 
     public void sendToOutput(String content, boolean error) {
@@ -179,7 +268,7 @@ public class Terminal {
         // Spawn Process if possible.
         /*if(isProcessShell(process) && !Objects.equals(baseCommand, "cd")) {
             String[] splitCommand = data.split(" ");
-            if(startProcess(splitCommand)) {
+            if(startProcess(splitCommand) != null) {
                 System.out.println("[Terminal] Processing new process command: " + data);
                 storeCommand(data);
                 return;
@@ -237,7 +326,15 @@ public class Terminal {
         }
     }
 
-    private void sendSignal(ProcessContainer process, String signal) {
+    private ProcessContainer getProcessByPid(int pid) {
+        for(ProcessContainer container: processList) {
+            if(container.pid == pid)
+                return container;
+        }
+        return null;
+    }
+
+    private void sendSignalByProcess(ProcessContainer process, String signal) {
         if(isBaseProcess(process)) {
             System.out.println("[Terminal] Base process " + process + " not killable with signal.");
             return;
@@ -247,7 +344,11 @@ public class Terminal {
         if(sigPid == -1)
             return;
 
-        startProcess(new String[] {"kill", "-" + signal, Integer.toString(sigPid)});
+        sendSignalByPid(sigPid, signal);
+    }
+
+    private void sendSignalByPid(int pid, String signal) {
+        startProcess(new String[] {"kill", "-" + signal, Integer.toString(pid)}, true);
     }
 
     private boolean isProcessShell(ProcessContainer process) {

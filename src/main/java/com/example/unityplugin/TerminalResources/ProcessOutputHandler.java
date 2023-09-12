@@ -3,6 +3,7 @@ package com.example.unityplugin.TerminalResources;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -12,10 +13,17 @@ public class ProcessOutputHandler extends Thread {
     private final ReadMethod readMethod;
     private final long startTime;
     private final BufferedReader outputReader;
+    private final boolean externalOutputBuffer;
 
-    public ProcessOutputHandler(ProcessContainer process, List<String> outputBuffer, boolean errorOutput, ReadMethod readMethod) {
+    public ProcessOutputHandler(ProcessContainer process, List<String> outputBuffer, boolean errorOutput,
+                                ReadMethod readMethod) {
         this.process = process;
-        this.outputBuffer = outputBuffer;
+
+        externalOutputBuffer = (outputBuffer != null);
+        if(externalOutputBuffer)
+            this.outputBuffer = outputBuffer;
+        else
+            this.outputBuffer = new ArrayList<>();
 
         if(errorOutput)
             outputReader = process.errorReader;
@@ -95,5 +103,17 @@ public class ProcessOutputHandler extends Thread {
                 }
             }
         }
+    }
+
+    public String getOutputLine() {
+        if(externalOutputBuffer)
+            return null;
+
+        if(outputBuffer.size() == 0)
+            return null;
+
+        String output = outputBuffer.get(0);
+        outputBuffer.remove(0);
+        return output;
     }
 }
