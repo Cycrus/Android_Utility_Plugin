@@ -2,6 +2,7 @@ package com.example.unityplugin;
 
 import android.app.Activity;
 
+import com.example.unityplugin.TerminalResources.EchoReturnControl;
 import com.example.unityplugin.TerminalResources.ProcessContainer;
 import com.example.unityplugin.TerminalResources.ProcessOutputHandler;
 import com.example.unityplugin.TerminalResources.ProcessWatcher;
@@ -29,6 +30,8 @@ public class Terminal {
 
     private List<String> helpString;
 
+    private String currDirectory = "";
+
     public Terminal(Activity activity) {
         pb = new ProcessBuilder();
         processList = new ArrayList<>();
@@ -52,6 +55,7 @@ public class Terminal {
 
             pb.command(startCommand);
             Process newProcess = pb.start();
+            currDirectory = pb.directory().toString();
             ProcessContainer newContainer = new ProcessContainer(newProcess, startCommand[0], getPid(newProcess));
 
             ProcessOutputHandler outputHandler;
@@ -79,6 +83,10 @@ public class Terminal {
             ProcessWatcher processWatcher = new ProcessWatcher(newContainer, processList);
             processWatcher.start();
 
+            if(startCommand[0].equals("sh")) {
+                writeInput("export HOME=" + androidActivity.getApplicationInfo().dataDir, false);
+            }
+
             return newContainer;
         }
         catch(IOException e) {
@@ -87,8 +95,11 @@ public class Terminal {
         }
     }
 
-    public void writeInput(String data) {
-        stdIn(getActiveProcess(), data);
+    public void writeInput(String data, boolean doStoreInputInHistory) {
+        stdIn(getActiveProcess(), data, doStoreInputInHistory);
+        if(data.split(" ", 2)[0].equals("cd")) {
+            setCurrDirectory();
+        }
     }
 
     public String readOutput() {
@@ -99,6 +110,17 @@ public class Terminal {
             output = outputBuffer.get(0);
             outputBuffer.remove(0);
         }
+
+        String[] echoReturnToken = output.split("=", 2);
+        echoReturnToken[0] += '=';
+        if(echoReturnToken[0].equals(EchoReturnControl.getEchoReturnToken())) {
+            String[] keyValuePair = echoReturnToken[1].split("=", 2);
+            if(keyValuePair[0].equals("pwd")) {
+                currDirectory = keyValuePair[1];
+                return null;
+            }
+        }
+
         return output;
     }
 
@@ -124,7 +146,7 @@ public class Terminal {
         String sigintString = Character.toString(sigintChar);
         boolean interruptedPing = interruptPingProcess();
         if(!interruptedPing)
-            writeInput(sigintString);
+            writeInput(sigintString, false);
     }
 
     public boolean interruptPingProcess() throws IOException, InterruptedException {
@@ -220,6 +242,27 @@ public class Terminal {
         return isProcessShell(getActiveProcess());
     }
 
+    public int getHistroySize() {
+        return commandHistory.size();
+    }
+
+    public String getHistroyCommand(int id) {
+        if(id > commandHistory.size() - 1)
+            return null;
+        if(id < 0)
+            return null;
+
+        return commandHistory.get(id);
+    }
+
+    public String getCurrDirectory() {
+        return currDirectory;
+    }
+
+    private void setCurrDirectory() {
+        writeInput("echo " + EchoReturnControl.getEchoReturnToken() + "pwd=" + "$PWD", false);
+    }
+
     private void writeCommandHistory() {
         outputBuffer.addAll(commandHistory);
     }
@@ -249,17 +292,31 @@ public class Terminal {
     public void storeCommand(String command) {
         if(command.charAt(command.length() - 1) != '\n')
             command += "\n";
+
+        if(commandHistory.size() > 0 && commandHistory.get(commandHistory.size() - 1).equals(command))
+            return;
+
         commandHistory.add(command);
         if(commandHistory.size() > 50) {
             commandHistory.remove(0);
         }
     }
 
-    private void stdIn(ProcessContainer process, String data) {
+    public void closeShell() throws IOException, InterruptedException {
+        if(getBaseProcess().name.equals("sh")) {
+            interruptShellProcess();
+        }
+        for(ProcessContainer container: processList) {
+            container.process.destroy();
+        }
+    }
+
+    private void stdIn(ProcessContainer process, String data, boolean doStoreCommand) {
         // First look if the command is custom.
         if(processCustomCommand(data)) {
             System.out.println("[Terminal] Processing custom command: " + data);
-            storeCommand(data);
+            if(doStoreCommand)
+                storeCommand(data);
             return;
         }
 
@@ -278,7 +335,8 @@ public class Terminal {
         // If not possible write in standard input.
         try {
             System.out.println("[Terminal] Sending <" + data + "> to stdin of " + process);
-            storeCommand(data);
+            if(doStoreCommand)
+                storeCommand(data);
             data += "\n";
             OutputStream stdin = process.process.getOutputStream();
             stdin.write(data.getBytes());
