@@ -1,6 +1,7 @@
 package com.example.unityplugin;
 
 import android.app.Activity;
+import android.os.Environment;
 
 import com.example.unityplugin.TerminalResources.EchoReturnControl;
 import com.example.unityplugin.TerminalResources.ProcessContainer;
@@ -27,6 +28,7 @@ public class Terminal {
     private final List<String> outputBuffer;
     private final List<String> errorBuffer;
     private final Activity androidActivity;
+    private String homeDirectory;
 
     private List<String> helpString;
 
@@ -39,8 +41,9 @@ public class Terminal {
         outputBuffer = new ArrayList<>();
         errorBuffer = new ArrayList<>();
         androidActivity = activity;
-        pb.directory(new File(androidActivity.getApplicationInfo().dataDir));
-        System.out.println("[Terminal] Working directory set to <" + androidActivity.getApplicationInfo().dataDir + ">");
+        homeDirectory = androidActivity.getApplicationInfo().dataDir + File.separator + "root" + File.separator + "home";
+        pb.directory(new File(homeDirectory));
+        System.out.println("[Terminal] Working directory set to <" + homeDirectory + ">");
         helpString = Arrays.asList(
                 "Here are some of the possible commands.\n",
                 "help, exit, echo, clear, ping, curl, pwd, cd, ls.\n"
@@ -84,7 +87,7 @@ public class Terminal {
             processWatcher.start();
 
             if(startCommand[0].equals("sh")) {
-                writeInput("export HOME=" + androidActivity.getApplicationInfo().dataDir, false);
+                writeInput("export HOME=" + homeDirectory, false);
             }
 
             return newContainer;
@@ -93,6 +96,13 @@ public class Terminal {
             System.out.println("[Terminal] ERROR: " + e);
             return null;
         }
+    }
+
+    public void writeWelcome() {
+        sendToOutput("App specific storage path: " + androidActivity.getApplicationInfo().dataDir + "\n", false);
+        sendToOutput("External storage path: " + Environment.getExternalStorageDirectory() + "\n", false);
+        sendToOutput("Home directory: " + homeDirectory + "\n", false);
+        sendToOutput("Have fun. ;)\n", false);
     }
 
     public void writeInput(String data, boolean doStoreInputInHistory) {

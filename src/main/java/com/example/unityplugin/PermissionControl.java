@@ -30,7 +30,12 @@ public class PermissionControl {
             Manifest.permission.UPDATE_DEVICE_STATS,
             Manifest.permission.WAKE_LOCK,
             Manifest.permission.INTERNET,
-            Manifest.permission.INTERNET}, 1);
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.MANAGE_MEDIA,
+            Manifest.permission.READ_MEDIA_AUDIO,
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VIDEO}, 1);
     }
 
     public void requestSystemPermissions()
