@@ -279,6 +279,7 @@ public class Terminal {
 
     private void writeHelp() {
         outputBuffer.addAll(helpString);
+        writeWelcome();
     }
 
     private ProcessContainer getActiveProcess() {
