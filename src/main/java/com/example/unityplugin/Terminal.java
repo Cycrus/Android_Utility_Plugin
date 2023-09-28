@@ -28,6 +28,7 @@ public class Terminal {
     private final List<String> outputBuffer;
     private final List<String> errorBuffer;
     private final Activity androidActivity;
+    private String rootDirectory;
     private String homeDirectory;
 
     private List<String> helpString;
@@ -41,7 +42,8 @@ public class Terminal {
         outputBuffer = new ArrayList<>();
         errorBuffer = new ArrayList<>();
         androidActivity = activity;
-        homeDirectory = androidActivity.getApplicationInfo().dataDir + File.separator + "root" + File.separator + "home";
+        rootDirectory = androidActivity.getApplicationInfo().dataDir + File.separator + "root";
+        homeDirectory = rootDirectory + File.separator + "home";
         pb.directory(new File(homeDirectory));
         System.out.println("[Terminal] Working directory set to <" + homeDirectory + ">");
         helpString = Arrays.asList(
@@ -87,7 +89,7 @@ public class Terminal {
             processWatcher.start();
 
             if(startCommand[0].equals("sh")) {
-                writeInput("export HOME=" + homeDirectory, false);
+                prepareEnvironmentVariables();
             }
 
             return newContainer;
@@ -96,6 +98,14 @@ public class Terminal {
             System.out.println("[Terminal] ERROR: " + e);
             return null;
         }
+    }
+
+    private void prepareEnvironmentVariables() {
+        writeInput("export HOME=" + homeDirectory, false);
+        writeInput("export TMPDIR=" + rootDirectory + File.separator + "tmp", false);
+        writeInput("export PATH=$PATH:" + rootDirectory + File.separator + "bin", false);
+        writeInput("export PATH=$PATH:" + rootDirectory + File.separator + "usr" + File.separator + "bin", false);
+        writeInput("export ANDROID_ART_ROOT=" + rootDirectory + File.separator + "usr" + File.separator + "bin" + File.separator + "env", false);
     }
 
     public void writeWelcome() {
