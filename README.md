@@ -17,7 +17,7 @@ A plugin for various utilities useful for Android Unity development. It was deve
 # Terminal Emulator
 The terminal emulator is written to support functions such as command history, home directory, path, and certain ANSI formatting symbols. It can spawn processes either from the shell in the background, or separated on a designated process stack. It automatically routes the standard input and output of each process to the bottom process, which is the bash shell.
 
-It might seem strangely written at times, especially regarding how input and output are handled. However, those methods were needed to make as many terminal functions available in Unity as possible.
+The terminal might seem strangely written at times, especially regarding how input and output are handled. However, those methods were needed to make as many terminal functions available in Unity as possible.
 
 Click on the image below to see a demo video of the terminal emulator.
 
