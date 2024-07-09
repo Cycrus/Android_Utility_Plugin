@@ -10,7 +10,202 @@ public class WebViewCustomInput {
     private HashMap<String, Integer> keyMapString = new HashMap<>();
     private HashMap<Integer, Integer> keyMapUnity = new HashMap<>();
 
+    private HashMap<String, String> keyMapStringUnityToJs = new HashMap<>();
+
     public WebViewCustomInput() {
+        setUnityToJsKeys();
+        setWebViewKeyboardKeys();
+    }
+
+    public void receiveWebView(WebView newWebview) {
+        System.out.println("[Webview] Initializing WebView plugin.");
+        webview = newWebview;
+    }
+
+    private int getKeyCode(String key) {
+        int keyCode;
+        try {
+            keyCode = keyMapString.get(key);
+        } catch(NullPointerException e) {
+            keyCode = -1;
+        }
+        return keyCode;
+    }
+
+    private int getKeyCode(int unityKeyCode) {
+        int keyCode;
+        try {
+            keyCode = keyMapUnity.get(unityKeyCode);
+        } catch(NullPointerException e) {
+            keyCode = -1;
+        }
+        return keyCode;
+    }
+
+    private String getJsKeyName(String key) {
+        String jsKeyName;
+        try {
+            jsKeyName = keyMapStringUnityToJs.get(key);
+        } catch(NullPointerException e) {
+            jsKeyName = "-1";
+        }
+        return jsKeyName;
+    }
+
+    private <T> void dispatchKeyInternalBuiltin(T key, Boolean keyDown) {
+        System.out.println("[Input] dispatching key <" + key + ">.");
+        int keyCode = -1;
+        if(key instanceof Integer)
+            keyCode = getKeyCode((Integer)key);
+        else if(key instanceof String)
+            keyCode = getKeyCode((String)key);
+
+        if(keyCode == -1)
+            return;
+
+        int finalKeyCode = keyCode;
+        System.out.println("[Input] dispatching keycode <" + finalKeyCode + ">.");
+        webview.post(new Runnable() {
+           @Override
+           public void run() {
+               if(keyDown) {
+                   KeyEvent downKeyEvent = new KeyEvent(KeyEvent.ACTION_DOWN, finalKeyCode);
+                   webview.dispatchKeyEvent(downKeyEvent);
+               }
+               else {
+                   KeyEvent upKeyEvent = new KeyEvent(KeyEvent.ACTION_UP, finalKeyCode);
+                   webview.dispatchKeyEvent(upKeyEvent);
+               }
+           }
+        });
+    }
+
+    private void dispatchKeyInternalInjection(String key, Boolean keyDown) {
+        System.out.println("[Input] dispatching key <" + key + ">.");
+        String finalKey = getJsKeyName(key);
+
+        if(finalKey.equals("-1")) {
+            System.out.println("[Input] Error. Cannot dispatch key <" + key + ">.");
+            return;
+        }
+
+        webview.post(new Runnable() {
+            @Override
+            public void run() {
+                if(keyDown) {
+                    String keyDownEvent = "document.dispatchEvent(new KeyboardEvent('keydown', { key: '" + finalKey + "', code: '" + finalKey + "' }));";
+                    System.out.println("[Input] key down event = " + keyDownEvent);
+                    webview.evaluateJavascript(keyDownEvent, null);
+                }
+                else {
+                    String keyUpEvent = "document.dispatchEvent(new KeyboardEvent('keyup', { key: '" + finalKey + "', code: '" + finalKey + "' }));";
+                    System.out.println("[Input] key up event = " + keyUpEvent);
+                    webview.evaluateJavascript(keyUpEvent, null);
+                }
+            }
+        });
+    }
+
+    public void keyDown(String key) {
+        dispatchKeyInternalInjection(key, true);
+    }
+
+    public void keyUp(String key) {
+        dispatchKeyInternalInjection(key, false);
+    }
+
+    public void keyDown(int key) {
+        dispatchKeyInternalBuiltin(key, true);
+    }
+
+    public void keyUp(int key) {
+        dispatchKeyInternalBuiltin(key, false);
+    }
+
+    private void setUnityToJsKeys() {
+        keyMapStringUnityToJs.put("UpArrow", "ArrowUp");
+        keyMapStringUnityToJs.put("DownArrow", "ArrowDown");
+        keyMapStringUnityToJs.put("LeftArrow", "ArrowLeft");
+        keyMapStringUnityToJs.put("RightArrow", "ArrowRight");
+
+        // Modifier Keys
+        keyMapStringUnityToJs.put("LeftShift", "ShiftLeft");
+        keyMapStringUnityToJs.put("RightShift", "ShiftRight");
+        keyMapStringUnityToJs.put("LeftControl", "ControlLeft");
+        keyMapStringUnityToJs.put("RightControl", "ControlRight");
+        keyMapStringUnityToJs.put("LeftAlt", "AltLeft");
+        keyMapStringUnityToJs.put("RightAlt", "AltRight");
+        keyMapStringUnityToJs.put("LeftCommand", "MetaLeft");  // macOS
+        keyMapStringUnityToJs.put("RightCommand", "MetaRight");  // macOS
+        keyMapStringUnityToJs.put("CapsLock", "CapsLock");
+        keyMapStringUnityToJs.put("Escape", "Escape");
+        keyMapStringUnityToJs.put("Space", " ");
+        keyMapStringUnityToJs.put("Tab", "Tab");
+        keyMapStringUnityToJs.put("Enter", "Enter");
+        keyMapStringUnityToJs.put("Backspace", "Backspace");
+        keyMapStringUnityToJs.put("Delete", "Delete");
+        keyMapStringUnityToJs.put("Insert", "Insert");
+        keyMapStringUnityToJs.put("PageUp", "PageUp");
+        keyMapStringUnityToJs.put("PageDown", "PageDown");
+        keyMapStringUnityToJs.put("End", "End");
+        keyMapStringUnityToJs.put("Home", "Home");
+
+        // Function Keys
+        for (int i = 1; i <= 12; i++) {
+            keyMapStringUnityToJs.put("F" + i, "F" + i);
+        }
+
+        // Alphanumeric Keys
+        for (char c = 'a'; c <= 'z'; c++) {
+            keyMapStringUnityToJs.put(String.valueOf(c).toUpperCase(), String.valueOf(c));
+        }
+        for (int i = 0; i <= 9; i++) {
+            keyMapStringUnityToJs.put("Alpha" + i, String.valueOf(i));
+        }
+
+        // Numpad Keys
+        for (int i = 0; i <= 9; i++) {
+            keyMapStringUnityToJs.put("Keypad" + i, "Numpad" + i);
+        }
+        keyMapStringUnityToJs.put("KeypadMultiply", "NumpadMultiply");
+        keyMapStringUnityToJs.put("KeypadAdd", "NumpadAdd");
+        keyMapStringUnityToJs.put("KeypadSubtract", "NumpadSubtract");
+        keyMapStringUnityToJs.put("KeypadDecimal", "NumpadDecimal");
+        keyMapStringUnityToJs.put("KeypadDivide", "NumpadDivide");
+        keyMapStringUnityToJs.put("KeypadEnter", "NumpadEnter");
+        keyMapStringUnityToJs.put("Numlock", "NumLock");
+
+        // Special Characters
+        keyMapStringUnityToJs.put("Backquote", "`");
+        keyMapStringUnityToJs.put("Minus", "-");
+        keyMapStringUnityToJs.put("Equals", "=");
+        keyMapStringUnityToJs.put("LeftBracket", "[");
+        keyMapStringUnityToJs.put("RightBracket", "]");
+        keyMapStringUnityToJs.put("Backslash", "\\");
+        keyMapStringUnityToJs.put("Semicolon", ";");
+        keyMapStringUnityToJs.put("Quote", "'");
+        keyMapStringUnityToJs.put("Comma", ",");
+        keyMapStringUnityToJs.put("Period", ".");
+        keyMapStringUnityToJs.put("Slash", "/");
+
+        // Media Keys
+        keyMapStringUnityToJs.put("MediaPlayPause", "MediaPlayPause");
+        keyMapStringUnityToJs.put("MediaStop", "MediaStop");
+        keyMapStringUnityToJs.put("MediaNextTrack", "MediaNextTrack");
+        keyMapStringUnityToJs.put("MediaPreviousTrack", "MediaPreviousTrack");
+        keyMapStringUnityToJs.put("VolumeMute", "VolumeMute");
+        keyMapStringUnityToJs.put("VolumeDown", "VolumeDown");
+        keyMapStringUnityToJs.put("VolumeUp", "VolumeUp");
+
+        // Other Keys
+        keyMapStringUnityToJs.put("ContextMenu", "ContextMenu");
+        keyMapStringUnityToJs.put("PrintScreen", "PrintScreen");
+        keyMapStringUnityToJs.put("ScrollLock", "ScrollLock");
+        keyMapStringUnityToJs.put("Pause", "Pause");
+        keyMapStringUnityToJs.put("Help", "Help");
+    }
+
+    private void setWebViewKeyboardKeys() {
         keyMapString.put("a", KeyEvent.KEYCODE_A);
         keyMapString.put("b", KeyEvent.KEYCODE_B);
         keyMapString.put("c", KeyEvent.KEYCODE_C);
@@ -63,6 +258,11 @@ public class WebViewCustomInput {
         keyMapString.put("/", KeyEvent.KEYCODE_SLASH);
         keyMapString.put("\\", KeyEvent.KEYCODE_BACKSLASH);
         keyMapString.put(" ", KeyEvent.KEYCODE_SPACE);
+
+        keyMapString.put("ArrowLeft", KeyEvent.KEYCODE_DPAD_LEFT); // Left Arrow key
+        keyMapString.put("ArrowUp", KeyEvent.KEYCODE_DPAD_UP); // Up Arrow key
+        keyMapString.put("ArrowRight", KeyEvent.KEYCODE_DPAD_RIGHT); // Right Arrow key
+        keyMapString.put("ArrowDown", KeyEvent.KEYCODE_DPAD_DOWN); // Down Arrow key
 
         keyMapUnity.put(48, KeyEvent.KEYCODE_0);
         keyMapUnity.put(49, KeyEvent.KEYCODE_1);
@@ -173,72 +373,5 @@ public class WebViewCustomInput {
         keyMapUnity.put(300, KeyEvent.KEYCODE_NUM_LOCK);
 
         keyMapUnity.put(19, KeyEvent.KEYCODE_BREAK);
-    }
-
-    public void receiveWebView(WebView newWebview) {
-        System.out.println("[Webview] Initializing WebView plugin.");
-        webview = newWebview;
-    }
-
-    private int getKeyCode(String key) {
-        int keyCode;
-        try {
-            keyCode = keyMapString.get(key);
-        } catch(NullPointerException e) {
-            keyCode = -1;
-        }
-        return keyCode;
-    }
-
-    private int getKeyCode(int unityKeyCode) {
-        int keyCode;
-        try {
-            keyCode = keyMapUnity.get(unityKeyCode);
-        } catch(NullPointerException e) {
-            keyCode = -1;
-        }
-        return keyCode;
-    }
-
-    private <T> void sendKeyInternal(T key, Boolean keyDown) {
-        int keyCode = -1;
-        if(key instanceof Integer)
-            keyCode = getKeyCode((Integer)key);
-        else if(key instanceof String)
-            keyCode = getKeyCode((String)key);
-
-        if(keyCode == -1)
-            return;
-
-        int finalKeyCode = keyCode;
-        webview.post(new Runnable() {
-           @Override
-           public void run() {
-               if(keyDown) {
-                   KeyEvent downKeyEvent = new KeyEvent(KeyEvent.ACTION_DOWN, finalKeyCode);
-                   webview.dispatchKeyEvent(downKeyEvent);
-               }
-               else {
-                   KeyEvent upKeyEvent = new KeyEvent(KeyEvent.ACTION_UP, finalKeyCode);
-                   webview.dispatchKeyEvent(upKeyEvent);
-               }
-           }
-        });
-    }
-
-    public void keyDown(String key) {
-        sendKeyInternal(key, true);
-    }
-
-    public void keyUp(String key) {
-        sendKeyInternal(key, false);
-    }
-
-    public void keyDown(int key) {
-        sendKeyInternal(key, true);
-    }
-
-    public void keyUp(int key) {
-        sendKeyInternal(key, false);
     }
 }
