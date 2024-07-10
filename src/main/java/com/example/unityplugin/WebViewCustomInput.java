@@ -3,6 +3,8 @@ package com.example.unityplugin;
 import android.view.KeyEvent;
 import android.webkit.WebView;
 
+import com.example.unityplugin.Utils.KeyInfo;
+
 import java.util.HashMap;
 
 public class WebViewCustomInput {
@@ -10,7 +12,7 @@ public class WebViewCustomInput {
     private HashMap<String, Integer> keyMapString = new HashMap<>();
     private HashMap<Integer, Integer> keyMapUnity = new HashMap<>();
 
-    private HashMap<String, String> keyMapStringUnityToJs = new HashMap<>();
+    private HashMap<String, KeyInfo> keyMapStringUnityToJs = new HashMap<>();
 
     public WebViewCustomInput() {
         setUnityToJsKeys();
@@ -42,18 +44,17 @@ public class WebViewCustomInput {
         return keyCode;
     }
 
-    private String getJsKeyName(String key) {
-        String jsKeyName;
+    private KeyInfo getJsKeyName(String key) {
+        KeyInfo jsKeyName;
         try {
             jsKeyName = keyMapStringUnityToJs.get(key);
         } catch(NullPointerException e) {
-            jsKeyName = "-1";
+            jsKeyName = null;
         }
         return jsKeyName;
     }
 
     private <T> void dispatchKeyInternalBuiltin(T key, Boolean keyDown) {
-        System.out.println("[Input] dispatching key <" + key + ">.");
         int keyCode = -1;
         if(key instanceof Integer)
             keyCode = getKeyCode((Integer)key);
@@ -61,10 +62,12 @@ public class WebViewCustomInput {
             keyCode = getKeyCode((String)key);
 
         if(keyCode == -1)
+        {
+            System.out.println("[Input] Error. Cannot dispatch key <" + key + ">.");
             return;
+        }
 
         int finalKeyCode = keyCode;
-        System.out.println("[Input] dispatching keycode <" + finalKeyCode + ">.");
         webview.post(new Runnable() {
            @Override
            public void run() {
@@ -81,10 +84,9 @@ public class WebViewCustomInput {
     }
 
     private void dispatchKeyInternalInjection(String key, Boolean keyDown) {
-        System.out.println("[Input] dispatching key <" + key + ">.");
-        String finalKey = getJsKeyName(key);
+        KeyInfo finalKey = getJsKeyName(key);
 
-        if(finalKey.equals("-1")) {
+        if(finalKey == null) {
             System.out.println("[Input] Error. Cannot dispatch key <" + key + ">.");
             return;
         }
@@ -93,13 +95,11 @@ public class WebViewCustomInput {
             @Override
             public void run() {
                 if(keyDown) {
-                    String keyDownEvent = "document.dispatchEvent(new KeyboardEvent('keydown', { key: '" + finalKey + "', code: '" + finalKey + "' }));";
-                    System.out.println("[Input] key down event = " + keyDownEvent);
+                    String keyDownEvent = "document.dispatchEvent(new KeyboardEvent('keydown', { key: '" + finalKey.name + "', code: '" + finalKey.code + "', which: '" + finalKey.which + "' }));";
                     webview.evaluateJavascript(keyDownEvent, null);
                 }
                 else {
-                    String keyUpEvent = "document.dispatchEvent(new KeyboardEvent('keyup', { key: '" + finalKey + "', code: '" + finalKey + "' }));";
-                    System.out.println("[Input] key up event = " + keyUpEvent);
+                    String keyUpEvent = "document.dispatchEvent(new KeyboardEvent('keyup', { key: '" + finalKey.name + "', code: '" + finalKey.code + "', which: '" + finalKey.which + "' }));";
                     webview.evaluateJavascript(keyUpEvent, null);
                 }
             }
@@ -123,86 +123,88 @@ public class WebViewCustomInput {
     }
 
     private void setUnityToJsKeys() {
-        keyMapStringUnityToJs.put("UpArrow", "ArrowUp");
-        keyMapStringUnityToJs.put("DownArrow", "ArrowDown");
-        keyMapStringUnityToJs.put("LeftArrow", "ArrowLeft");
-        keyMapStringUnityToJs.put("RightArrow", "ArrowRight");
+        // Arrow keys
+        keyMapStringUnityToJs.put("UpArrow", new KeyInfo("ArrowUp", "ArrowUp", 38));
+        keyMapStringUnityToJs.put("DownArrow", new KeyInfo("ArrowDown", "ArrowDown", 40));
+        keyMapStringUnityToJs.put("LeftArrow", new KeyInfo("ArrowLeft", "ArrowLeft", 37));
+        keyMapStringUnityToJs.put("RightArrow", new KeyInfo("ArrowRight", "ArrowRight", 39));
 
         // Modifier Keys
-        keyMapStringUnityToJs.put("LeftShift", "ShiftLeft");
-        keyMapStringUnityToJs.put("RightShift", "ShiftRight");
-        keyMapStringUnityToJs.put("LeftControl", "ControlLeft");
-        keyMapStringUnityToJs.put("RightControl", "ControlRight");
-        keyMapStringUnityToJs.put("LeftAlt", "AltLeft");
-        keyMapStringUnityToJs.put("RightAlt", "AltRight");
-        keyMapStringUnityToJs.put("LeftCommand", "MetaLeft");  // macOS
-        keyMapStringUnityToJs.put("RightCommand", "MetaRight");  // macOS
-        keyMapStringUnityToJs.put("CapsLock", "CapsLock");
-        keyMapStringUnityToJs.put("Escape", "Escape");
-        keyMapStringUnityToJs.put("Space", " ");
-        keyMapStringUnityToJs.put("Tab", "Tab");
-        keyMapStringUnityToJs.put("Enter", "Enter");
-        keyMapStringUnityToJs.put("Backspace", "Backspace");
-        keyMapStringUnityToJs.put("Delete", "Delete");
-        keyMapStringUnityToJs.put("Insert", "Insert");
-        keyMapStringUnityToJs.put("PageUp", "PageUp");
-        keyMapStringUnityToJs.put("PageDown", "PageDown");
-        keyMapStringUnityToJs.put("End", "End");
-        keyMapStringUnityToJs.put("Home", "Home");
+        keyMapStringUnityToJs.put("LeftShift", new KeyInfo("Shift", "ShiftLeft", 16));
+        keyMapStringUnityToJs.put("RightShift", new KeyInfo("Shift", "ShiftRight", 16));
+        keyMapStringUnityToJs.put("LeftControl", new KeyInfo("Control", "ControlLeft", 17));
+        keyMapStringUnityToJs.put("RightControl", new KeyInfo("Control", "ControlRight", 17));
+        keyMapStringUnityToJs.put("LeftAlt", new KeyInfo("Alt", "AltLeft", 18));
+        keyMapStringUnityToJs.put("RightAlt", new KeyInfo("Alt", "AltRight", 18));
+        keyMapStringUnityToJs.put("LeftCommand", new KeyInfo("Meta", "MetaLeft", 91));  // macOS
+        keyMapStringUnityToJs.put("RightCommand", new KeyInfo("Meta", "MetaRight", 93));  // macOS
+        keyMapStringUnityToJs.put("CapsLock", new KeyInfo("CapsLock", "CapsLock", 20));
+        keyMapStringUnityToJs.put("Escape", new KeyInfo("Escape", "Escape", 27));
+        keyMapStringUnityToJs.put("Space", new KeyInfo(" ", "Space", 32));
+        keyMapStringUnityToJs.put("Tab", new KeyInfo("Tab", "Tab", 9));
+        keyMapStringUnityToJs.put("Enter", new KeyInfo("Enter", "Enter", 13));
+        keyMapStringUnityToJs.put("Return", new KeyInfo("Enter", "Enter", 13));
+        keyMapStringUnityToJs.put("Backspace", new KeyInfo("Backspace", "Backspace", 8));
+        keyMapStringUnityToJs.put("Delete", new KeyInfo("Delete", "Delete", 46));
+        keyMapStringUnityToJs.put("Insert", new KeyInfo("Insert", "Insert", 45));
+        keyMapStringUnityToJs.put("PageUp", new KeyInfo("PageUp", "PageUp", 33));
+        keyMapStringUnityToJs.put("PageDown", new KeyInfo("PageDown", "PageDown", 34));
+        keyMapStringUnityToJs.put("End", new KeyInfo("End", "End", 35));
+        keyMapStringUnityToJs.put("Home", new KeyInfo("Home", "Home", 36));
 
         // Function Keys
         for (int i = 1; i <= 12; i++) {
-            keyMapStringUnityToJs.put("F" + i, "F" + i);
+            keyMapStringUnityToJs.put("F" + i, new KeyInfo("F" + i, "F" + i, 111 + i));
         }
 
         // Alphanumeric Keys
         for (char c = 'a'; c <= 'z'; c++) {
-            keyMapStringUnityToJs.put(String.valueOf(c).toUpperCase(), String.valueOf(c));
+            keyMapStringUnityToJs.put(String.valueOf(c).toUpperCase(), new KeyInfo(String.valueOf(c), "Key" + String.valueOf(c).toUpperCase(), (int) c - 32));
         }
         for (int i = 0; i <= 9; i++) {
-            keyMapStringUnityToJs.put("Alpha" + i, String.valueOf(i));
+            keyMapStringUnityToJs.put("Alpha" + i, new KeyInfo(String.valueOf(i), "Digit" + i, 48 + i));
         }
 
         // Numpad Keys
         for (int i = 0; i <= 9; i++) {
-            keyMapStringUnityToJs.put("Keypad" + i, "Numpad" + i);
+            keyMapStringUnityToJs.put("Keypad" + i, new KeyInfo(String.valueOf(i), "Numpad" + i, 96 + i));
         }
-        keyMapStringUnityToJs.put("KeypadMultiply", "NumpadMultiply");
-        keyMapStringUnityToJs.put("KeypadAdd", "NumpadAdd");
-        keyMapStringUnityToJs.put("KeypadSubtract", "NumpadSubtract");
-        keyMapStringUnityToJs.put("KeypadDecimal", "NumpadDecimal");
-        keyMapStringUnityToJs.put("KeypadDivide", "NumpadDivide");
-        keyMapStringUnityToJs.put("KeypadEnter", "NumpadEnter");
-        keyMapStringUnityToJs.put("Numlock", "NumLock");
+        keyMapStringUnityToJs.put("KeypadMultiply", new KeyInfo("*", "NumpadMultiply", 106));
+        keyMapStringUnityToJs.put("KeypadAdd", new KeyInfo("+", "NumpadAdd", 107));
+        keyMapStringUnityToJs.put("KeypadSubtract", new KeyInfo("-", "NumpadSubtract", 109));
+        keyMapStringUnityToJs.put("KeypadDecimal", new KeyInfo(".", "NumpadDecimal", 110));
+        keyMapStringUnityToJs.put("KeypadDivide", new KeyInfo("/", "NumpadDivide", 111));
+        keyMapStringUnityToJs.put("KeypadEnter", new KeyInfo("Enter", "NumpadEnter", 13));
+        keyMapStringUnityToJs.put("Numlock", new KeyInfo("NumLock", "NumLock", 144));
 
         // Special Characters
-        keyMapStringUnityToJs.put("Backquote", "`");
-        keyMapStringUnityToJs.put("Minus", "-");
-        keyMapStringUnityToJs.put("Equals", "=");
-        keyMapStringUnityToJs.put("LeftBracket", "[");
-        keyMapStringUnityToJs.put("RightBracket", "]");
-        keyMapStringUnityToJs.put("Backslash", "\\");
-        keyMapStringUnityToJs.put("Semicolon", ";");
-        keyMapStringUnityToJs.put("Quote", "'");
-        keyMapStringUnityToJs.put("Comma", ",");
-        keyMapStringUnityToJs.put("Period", ".");
-        keyMapStringUnityToJs.put("Slash", "/");
+        keyMapStringUnityToJs.put("Backquote", new KeyInfo("`", "Backquote", 192));
+        keyMapStringUnityToJs.put("Minus", new KeyInfo("-", "Minus", 189));
+        keyMapStringUnityToJs.put("Equals", new KeyInfo("=", "Equal", 187));
+        keyMapStringUnityToJs.put("LeftBracket", new KeyInfo("[", "BracketLeft", 219));
+        keyMapStringUnityToJs.put("RightBracket", new KeyInfo("]", "BracketRight", 221));
+        keyMapStringUnityToJs.put("Backslash", new KeyInfo("\\", "Backslash", 220));
+        keyMapStringUnityToJs.put("Semicolon", new KeyInfo(";", "Semicolon", 186));
+        keyMapStringUnityToJs.put("Quote", new KeyInfo("'", "Quote", 222));
+        keyMapStringUnityToJs.put("Comma", new KeyInfo(",", "Comma", 188));
+        keyMapStringUnityToJs.put("Period", new KeyInfo(".", "Period", 190));
+        keyMapStringUnityToJs.put("Slash", new KeyInfo("/", "Slash", 191));
 
         // Media Keys
-        keyMapStringUnityToJs.put("MediaPlayPause", "MediaPlayPause");
-        keyMapStringUnityToJs.put("MediaStop", "MediaStop");
-        keyMapStringUnityToJs.put("MediaNextTrack", "MediaNextTrack");
-        keyMapStringUnityToJs.put("MediaPreviousTrack", "MediaPreviousTrack");
-        keyMapStringUnityToJs.put("VolumeMute", "VolumeMute");
-        keyMapStringUnityToJs.put("VolumeDown", "VolumeDown");
-        keyMapStringUnityToJs.put("VolumeUp", "VolumeUp");
+        keyMapStringUnityToJs.put("MediaPlayPause", new KeyInfo("MediaPlayPause", "MediaPlayPause", 179));
+        keyMapStringUnityToJs.put("MediaStop", new KeyInfo("MediaStop", "MediaStop", 178));
+        keyMapStringUnityToJs.put("MediaNextTrack", new KeyInfo("MediaNextTrack", "MediaTrackNext", 176));
+        keyMapStringUnityToJs.put("MediaPreviousTrack", new KeyInfo("MediaPreviousTrack", "MediaTrackPrevious", 177));
+        keyMapStringUnityToJs.put("VolumeMute", new KeyInfo("VolumeMute", "AudioVolumeMute", 173));
+        keyMapStringUnityToJs.put("VolumeDown", new KeyInfo("VolumeDown", "AudioVolumeDown", 174));
+        keyMapStringUnityToJs.put("VolumeUp", new KeyInfo("VolumeUp", "AudioVolumeUp", 175));
 
         // Other Keys
-        keyMapStringUnityToJs.put("ContextMenu", "ContextMenu");
-        keyMapStringUnityToJs.put("PrintScreen", "PrintScreen");
-        keyMapStringUnityToJs.put("ScrollLock", "ScrollLock");
-        keyMapStringUnityToJs.put("Pause", "Pause");
-        keyMapStringUnityToJs.put("Help", "Help");
+        keyMapStringUnityToJs.put("ContextMenu", new KeyInfo("ContextMenu", "ContextMenu", 93));
+        keyMapStringUnityToJs.put("PrintScreen", new KeyInfo("PrintScreen", "PrintScreen", 44));
+        keyMapStringUnityToJs.put("ScrollLock", new KeyInfo("ScrollLock", "ScrollLock", 145));
+        keyMapStringUnityToJs.put("Pause", new KeyInfo("Pause", "Pause", 19));
+        keyMapStringUnityToJs.put("Help", new KeyInfo("Help", "Help", 47));
     }
 
     private void setWebViewKeyboardKeys() {
