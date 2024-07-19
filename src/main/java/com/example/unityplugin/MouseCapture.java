@@ -15,11 +15,11 @@ public class MouseCapture {
     boolean leftButtonDown = false;
     boolean rightButtonDown = false;
     boolean middleButtonDown = false;
-    boolean leftButtonHold = false;
-    boolean rightButtonHold = false;
-    boolean middleButtonHold = false;
     float verticalWheelOffset = 0f;
     float horizontalWheelOffset = 0f;
+
+    final int LEFT_BUTTON = 1;
+    final int RIGHT_BUTTON = 8;
 
     private static Activity unityActivity;
     public static void receiveUnityActivity(Activity tActivity) {
@@ -41,31 +41,27 @@ public class MouseCapture {
                 if(buttonAction == MotionEvent.ACTION_BUTTON_PRESS) {
                     switch(buttonType)
                     {
-                        case MotionEvent.BUTTON_PRIMARY:
+                        case LEFT_BUTTON:
+                            System.out.println("[DEBUG CLICK JAVA] Pressing left button.");
                             leftButtonDown = true;
-                            leftButtonHold = true;
                             break;
-                        case MotionEvent.BUTTON_SECONDARY:
+                        case RIGHT_BUTTON:
+                            System.out.println("[DEBUG CLICK JAVA] Pressing right button.");
                             rightButtonDown = true;
-                            rightButtonHold = true;
-                            break;
-                        case MotionEvent.BUTTON_TERTIARY:
-                            middleButtonDown = true;
-                            middleButtonHold = true;
                             break;
                     }
                 }
+
                 else if(buttonAction == MotionEvent.ACTION_BUTTON_RELEASE) {
                     switch(buttonType)
                     {
-                        case MotionEvent.BUTTON_PRIMARY:
-                            leftButtonHold = false;
+                        case LEFT_BUTTON:
+                            System.out.println("[DEBUG CLICK JAVA] Releasing left button.");
+                            leftButtonDown = false;
                             break;
-                        case MotionEvent.BUTTON_SECONDARY:
-                            rightButtonHold = false;
-                            break;
-                        case MotionEvent.BUTTON_TERTIARY:
-                            middleButtonHold = false;
+                        case RIGHT_BUTTON:
+                            System.out.println("[DEBUG CLICK JAVA] Releasing right button.");
+                            rightButtonDown = false;
                             break;
                     }
                 }
@@ -101,33 +97,11 @@ public class MouseCapture {
     }
 
     public boolean isLeftButtonDown() {
-        boolean retButton = leftButtonDown;
-        leftButtonDown = false;
-        return retButton;
+        return leftButtonDown;
     }
 
     public boolean isRightButtonDown() {
-        boolean retButton = rightButtonDown;
-        rightButtonDown = false;
-        return retButton;
-    }
-
-    public boolean isMiddleButtonDown() {
-        boolean retButton = middleButtonDown;
-        middleButtonDown = false;
-        return retButton;
-    }
-
-    public boolean isLeftButtonHold() {
-        return leftButtonHold;
-    }
-
-    public boolean isRightButtonHold() {
-        return rightButtonHold;
-    }
-
-    public boolean isMiddleButtonHold() {
-        return middleButtonHold;
+        return rightButtonDown;
     }
 
     public float getVerticalWheelOffset() {
