@@ -14,7 +14,6 @@ public class MouseCapture {
     float xOffset = 0f;
     boolean leftButtonDown = false;
     boolean rightButtonDown = false;
-    boolean middleButtonDown = false;
     float verticalWheelOffset = 0f;
     float horizontalWheelOffset = 0f;
 
@@ -42,11 +41,9 @@ public class MouseCapture {
                     switch(buttonType)
                     {
                         case LEFT_BUTTON:
-                            System.out.println("[DEBUG CLICK JAVA] Pressing left button.");
                             leftButtonDown = true;
                             break;
                         case RIGHT_BUTTON:
-                            System.out.println("[DEBUG CLICK JAVA] Pressing right button.");
                             rightButtonDown = true;
                             break;
                     }
@@ -56,11 +53,9 @@ public class MouseCapture {
                     switch(buttonType)
                     {
                         case LEFT_BUTTON:
-                            System.out.println("[DEBUG CLICK JAVA] Releasing left button.");
                             leftButtonDown = false;
                             break;
                         case RIGHT_BUTTON:
-                            System.out.println("[DEBUG CLICK JAVA] Releasing right button.");
                             rightButtonDown = false;
                             break;
                     }

@@ -106,12 +106,18 @@ public class WebViewCustomInput {
         });
     }
 
-    public void keyDown(String key) {
-        dispatchKeyInternalInjection(key, true);
+    public void keyDown(String key, boolean injection) {
+        if(injection)
+            dispatchKeyInternalInjection(key, true);
+        else
+            dispatchKeyInternalBuiltin(key, true);
     }
 
-    public void keyUp(String key) {
-        dispatchKeyInternalInjection(key, false);
+    public void keyUp(String key, boolean injection) {
+        if(injection)
+            dispatchKeyInternalInjection(key, false);
+        else
+            dispatchKeyInternalBuiltin(key, false);
     }
 
     public void keyDown(int key) {
