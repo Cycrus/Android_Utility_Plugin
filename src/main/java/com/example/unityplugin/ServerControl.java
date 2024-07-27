@@ -3,9 +3,11 @@ package com.example.unityplugin;
 import android.app.Activity;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.Socket;
 import java.net.SocketException;
 
 import com.jcraft.jsch.ChannelExec;
@@ -62,6 +64,14 @@ public class ServerControl {
         serverManager.send(packet);
     }
 
+    public void sendMacOverTcp(String macAddress, String address, int port) throws IOException {
+        Socket tcpSocket = new Socket(address, port);
+        OutputStream msgOutput = tcpSocket.getOutputStream();
+        msgOutput.write(macAddress.getBytes());
+        msgOutput.flush();
+        tcpSocket.close();
+    }
+
     public static String executeRemoteCommand(
             String username,
             String password,
@@ -104,7 +114,8 @@ public class ServerControl {
     }
 
     public void startServer() throws IOException {
-        sendWakeOnLan("FC:34:97:A5:F1:3C", "192.168.50.255");
+        //sendWakeOnLan("FC:34:97:A5:F1:3C", "192.168.50.255");
+        sendMacOverTcp("FC:34:97:A5:F1:3C", "192.168.50.77", 3001);
     }
 
     public void shutdownServer(String username, String password, String hostname) throws Exception {
